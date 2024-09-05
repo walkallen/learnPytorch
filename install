@@ -5,6 +5,7 @@
 ipykernel
 matplotlib
 pytorch
+mlxtend
 
 
 
