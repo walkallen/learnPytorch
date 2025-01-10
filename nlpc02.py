@@ -90,12 +90,132 @@ trainer = Trainer(
 '''
 
 
+# trainer.train()
+
+
+'''
+
+{'loss': 0.4866, 'grad_norm': 6.259756565093994, 'learning_rate': 3.184458968772695e-05, 'epoch': 1.09}                                           
+{'loss': 0.236, 'grad_norm': 0.13721801340579987, 'learning_rate': 1.3689179375453886e-05, 'epoch': 2.18}                                         
+{'train_runtime': 83.7762, 'train_samples_per_second': 131.35, 'train_steps_per_second': 16.437, 'train_loss': 0.291377137515886, 'epoch': 3.0} 
+
+
+这将开始微调（在 GPU 上应该需要几分钟时间）并每 500 步报告一次训练损失。然而，它不会告诉你你的模型表现如何（好或坏）。这是因为：
+
+1. 我们没有通过将 evaluation_strategy 设置为 "steps" （每 eval_steps 评估一次）或 "epoch" 
+    （在每个 epoch 结束时评估）来告诉 Trainer 在训练期间进行评估。
+
+2. 我们没有为 Trainer 提供 compute_metrics() 功能来在所述评估期间计算一个指标（否则评估只会打印损失，这不是一个很直观的数字）。
+
+
+让我们看看我们如何构建一个有用的 compute_metrics() 函数，并在下次训练时使用它。
+该函数必须接受一个 EvalPrediction 对象（它是一个具有 predictions 字段和 label_ids 字段的命名元组）
+并返回一个将字符串映射到浮点数的字典（字符串是返回的指标名称，浮点数是它们的值）。
+要从我们的模型获取一些预测，我们可以使用 Trainer.predict() 命令：
+
+
+
+'''
+
+predictions = trainer.predict(tokenized_datasets["validation"])
+print(predictions.predictions.shape, predictions.label_ids.shape)
+
+
+
+'''
+
+predict() 方法的输出是另一个包含三个字段的命名元组： predictions 、 label_ids 和 metrics 。 
+metrics 字段将仅包含传递给数据集的损失以及一些时间指标（预测所需的总时间和平均时间）。
+一旦我们完成我们的 compute_metrics() 函数并将其传递给 Trainer ，该字段也将包含 compute_metrics() 返回的指标。
+
+如您所见， predictions 是一个形状为 408 x 2 的二维数组 (408 是我们在数据集中使用的元素数量）。
+这些是传递给 predict() 的每个数据集元素的 logits (正如您在上一章中看到的，所有 Transformer 模型都返回 logits) 。要将它们转换为可以与我们标签进行比较的预测，我们需要在第二个轴上取最大值的索引：
+
+'''
+
+import numpy as np
+
+preds = np.argmax(predictions.predictions, axis=-1)
+
+
+
+'''
+
+我们现在可以将这些 preds 与标签进行比较。为了构建我们的 compute_metric() 函数，
+我们将依赖于🤗 Evaluate 库中的指标。我们可以像加载数据集一样轻松地加载与 MRPC 数据集相关的指标，
+这次使用 evaluate.load() 函数。返回的对象有一个我们可以用来进行指标计算的 compute() 方法：
+
+'''
+
+
+
+import evaluate
+
+metric = evaluate.load("glue", "mrpc")
+
+print(
+metric.compute(predictions=preds, references=predictions.label_ids)
+
+)
+
+
+'''
+
+您得到的精确结果可能会有所不同，因为模型头的随机初始化可能会改变其达到的指标。
+在这里，我们可以看到我们的模型在验证集上的准确率为 85.78%，F1 分数为 89.97。
+这两个指标用于评估 GLUE 基准测试中 MRPC 数据集上的结果。BERT 论文中的表格报告了
+基础模型的 F1 分数为 88.9。那是 uncased 模型，而我们目前使用的是 cased 模型，这解释了更好的结果。
+
+将所有内容整合在一起，我们得到我们的 compute_metrics() 函数：
+
+'''
+
+def compute_metrics(eval_preds):
+    metric = evaluate.load("glue", "mrpc")
+    logits, labels = eval_preds
+    predictions = np.argmax(logits, axis=-1)
+    return metric.compute(predictions=predictions, references=labels)
+
+
+'''
+为了看到它在每个 epoch 结束时报告指标的应用，以下是使用此 compute_metrics() 函数定义新 Trainer 的方法：
+
+'''
+
+training_args = TrainingArguments("test-trainer", evaluation_strategy="epoch")
+model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=2)
+
+trainer = Trainer(
+    model,
+    training_args,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["validation"],
+    data_collator=data_collator,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics,
+)
+
 trainer.train()
 
 
-'''
-这将开始微调（在 GPU 上应该需要几分钟时间）并每 500 步报告一次训练损失。然而，它不会告诉你你的模型表现如何（好或坏）。这是因为：
-
-
 
 '''
+这次，它将在每个 epoch 结束时报告验证损失和指标，除了训练损失。
+再次强调，您达到的精确准确率/F1 分数可能与我们所找到的略有不同，因为模型随机头初始化的原因，但它应该在大致相同的范围内。
+
+
+该 Trainer 在多个 GPU 或 TPU 上即插即用，并提供大量选项，
+如混合精度训练（在您的训练参数中使用 fp16 = True ）。我们将在第 10 章中详细介绍它支持的所有功能。
+
+本节介绍了使用 Trainer API 进行微调的入门。第 7 章将给出一个针对大多数常见 NLP 任务的示例，
+但在此我们先看看如何在纯 PyTorch 中实现相同的功能。
+
+
+'''
+
+
+
+
+
+
+
