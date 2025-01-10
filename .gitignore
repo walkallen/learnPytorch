@@ -2,3 +2,4 @@ env_*/
 models/
 __pycache__/
 data/
+test-trainer/
