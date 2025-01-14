@@ -1,0 +1,36 @@
+{
+    'image_id': 366, 
+    'image': <PIL.PngImagePlugin.PngImageFile image mode=RGBA size=500x290 at 0x7FEE4432C940>, 
+    'width': 500, 'height': 500, 'objects': {'id': [
+            1932,
+            1933,
+            1934
+        ], 'area': [27063,
+            34200,
+            32431
+        ], 'bbox': [
+            [
+                29.0,
+                11.0,
+                97.0,
+                279.0
+            ],
+            [
+                201.0,
+                1.0,
+                120.0,
+                285.0
+            ],
+            [
+                382.0,
+                0.0,
+                113.0,
+                287.0
+            ]
+        ], 'category': [
+            0,
+            0,
+            0
+        ]
+    }
+}

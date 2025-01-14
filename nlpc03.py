@@ -5,7 +5,7 @@ Reference
 https://huggingface.co/learn/nlp-course/chapter3/4?fw=pt
 
 
-A full training  全面培训
+A full training  全面训练
 
 现在我们将看到如何在不使用 Trainer 类的情况下实现与上一节相同的结果。
 再次假设你已经完成了第 2 节中的数据处理。以下是涵盖你需要的一切的简要总结：
