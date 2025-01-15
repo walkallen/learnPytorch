@@ -168,5 +168,227 @@ image_std = [0.229, 0.224, 0.225]
 
 这些是用于模型预训练期间图像归一化的均值和标准差。这些值在执行推理或微调预训练图像模型时至关重要。
 
+从与您要微调的模型相同的检查点实例化图像处理器。
+'''
+
+
+from transformers import AutoImageProcessor
+
+MAX_SIZE = IMAGE_SIZE
+
+image_processor = AutoImageProcessor.from_pretrained(
+    MODEL_NAME,
+    do_resize=True,
+    size={"max_height": MAX_SIZE, "max_width": MAX_SIZE},
+    do_pad=True,
+    pad_size={"height": MAX_SIZE, "width": MAX_SIZE},
+)
+
+
 
 '''
+在将图像传递给 image_processor 之前，对数据集应用两种预处理转换：
+
+Augmenting images  增强图像
+
+Reformatting annotations to meet DETR expectations  重整标注以满足 DETR 期望
+
+
+
+首先，为了确保模型不会在训练数据上过拟合，你可以使用任何数据增强库来应用图像增强。
+这里我们使用 Albumentations。这个库确保变换会影响图像并相应地更新边界框。
+🤗 Datasets 库文档有关于如何为对象检测增强图像的详细指南，并使用相同的示例数据集。
+对图像应用一些几何和颜色变换。要探索更多增强选项，请查看 Albumentations 演示空间。
+
+
+
+
+'''
+
+
+import albumentations as A
+
+train_augment_and_transform = A.Compose(
+    [
+        A.Perspective(p=0.1),
+        A.HorizontalFlip(p=0.5),
+        A.RandomBrightnessContrast(p=0.5),
+        A.HueSaturationValue(p=0.1),
+    ],
+    bbox_params=A.BboxParams(format="coco", label_fields=["category"], clip=True, min_area=25),
+)
+
+validation_transform = A.Compose(
+    [A.NoOp()],
+    bbox_params=A.BboxParams(format="coco", label_fields=["category"], clip=True),
+)
+
+
+
+'''
+
+该 image_processor 期望注释采用以下格式： 
+{
+    'image_id': int, 
+    'annotations': List[Dict]
+} 
+其中每个字典都是一个 COCO 对象注释。让我们添加一个函数来重新格式化单个示例的注释：
+
+'''
+
+def format_image_annotations_as_coco(image_id, categories, areas, bboxes):
+    """Format one set of image annotations to the COCO format
+
+    Args:
+        image_id (str): image id. e.g. "0001"
+        categories (List[int]): list of categories/class labels corresponding to provided bounding boxes
+        areas (List[float]): list of corresponding areas to provided bounding boxes
+        bboxes (List[Tuple[float]]): list of bounding boxes provided in COCO format
+            ([center_x, center_y, width, height] in absolute coordinates)
+
+    Returns:
+        dict: {
+            "image_id": image id,
+            "annotations": list of formatted annotations
+        }
+    """
+    annotations = []
+    for category, area, bbox in zip(categories, areas, bboxes):
+        formatted_annotation = {
+            "image_id": image_id,
+            "category_id": category,
+            "iscrowd": 0,
+            "area": area,
+            "bbox": list(bbox),
+        }
+        annotations.append(formatted_annotation)
+
+    return {
+        "image_id": image_id,
+        "annotations": annotations,
+    }
+
+
+
+'''
+现在您可以将图像和注释变换组合起来，用于批量示例：
+
+'''
+
+def augment_and_transform_batch(examples, transform, image_processor, return_pixel_mask=False):
+    """Apply augmentations and format annotations in COCO format for object detection task"""
+
+    images = []
+    annotations = []
+    for image_id, image, objects in zip(examples["image_id"], examples["image"], examples["objects"]):
+        image = np.array(image.convert("RGB"))
+
+        # apply augmentations
+        output = transform(image=image, bboxes=objects["bbox"], category=objects["category"])
+        images.append(output["image"])
+
+        # format annotations in COCO format
+        formatted_annotations = format_image_annotations_as_coco(
+            image_id, output["category"], objects["area"], output["bboxes"]
+        )
+        annotations.append(formatted_annotations)
+
+    # Apply the image processor transformations: resizing, rescaling, normalization
+    result = image_processor(images=images, annotations=annotations, return_tensors="pt")
+
+    if not return_pixel_mask:
+        result.pop("pixel_mask", None)
+
+    return result
+
+
+'''
+
+将此预处理函数应用于整个数据集，使用 🤗 Datasets 的 with_transform 方法。此方法在加载数据集的元素时即时应用转换。
+
+在此阶段，您可以查看数据集中的一个示例在转换后的样子。您应该看到一个带有 pixel_values 的张量，一个带有 pixel_mask 的张量，以及一个带有 labels 的张量。
+'''
+
+
+from functools import partial
+
+# Make transform functions for batch and apply for dataset splits
+train_transform_batch = partial(
+    augment_and_transform_batch, transform=train_augment_and_transform, image_processor=image_processor
+)
+validation_transform_batch = partial(
+    augment_and_transform_batch, transform=validation_transform, image_processor=image_processor
+)
+
+cppe5["train"] = cppe5["train"].with_transform(train_transform_batch)
+cppe5["validation"] = cppe5["validation"].with_transform(validation_transform_batch)
+cppe5["test"] = cppe5["test"].with_transform(validation_transform_batch)
+
+print(
+cppe5["train"][15]
+)
+
+
+
+
+
+
+'''
+您已成功增强单个图像并准备它们的注释。然而，预处理尚未完成。
+在最后一步，创建一个自定义 collate_fn 以批量组合图像。
+将图像（现在是 pixel_values ）填充到批量中最大的图像大小，
+并创建相应的 pixel_mask 以指示哪些像素是真实的(1)以及哪些是填充(0)。
+
+'''
+
+
+import torch
+
+def collate_fn(batch):
+    data = {}
+    data["pixel_values"] = torch.stack([x["pixel_values"] for x in batch])
+    data["labels"] = [x["labels"] for x in batch]
+    if "pixel_mask" in batch[0]:
+        data["pixel_mask"] = torch.stack([x["pixel_mask"] for x in batch])
+    return data
+
+
+
+'''
+准备计算 mAP 的函数
+
+目标检测模型通常使用一组 COCO 风格的指标进行评估。
+我们将使用 torchmetrics 来计算 mAP （平均精度）和 mAR （平均召回率）指标，
+并将其封装到 compute_metrics 函数中，以便在训练器中进行评估。
+
+中间用于训练的框的格式是 YOLO （归一化），但我们将计算 Pascal VOC （绝对）
+格式中框的度量，以正确处理框面积。让我们定义一个将边界框转换为 Pascal VOC 格式的函数：
+
+
+'''
+
+
+from transformers.image_transforms import center_to_corners_format
+
+def convert_bbox_yolo_to_pascal(boxes, image_size):
+    """
+    Convert bounding boxes from YOLO format (x_center, y_center, width, height) in range [0, 1]
+    to Pascal VOC format (x_min, y_min, x_max, y_max) in absolute coordinates.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes in YOLO format
+        image_size (Tuple[int, int]): Image size in format (height, width)
+
+    Returns:
+        torch.Tensor: Bounding boxes in Pascal VOC format (x_min, y_min, x_max, y_max)
+    """
+    # convert center to corners format
+    boxes = center_to_corners_format(boxes)
+
+    # convert to absolute coordinates
+    height, width = image_size
+    boxes = boxes * torch.tensor([[width, height, width, height]])
+
+    return boxes
+
+
