@@ -124,7 +124,93 @@ load_dataset("pandas", data_files="my_dataframe.pkl")
 
 
 
+Loading a local dataset  加载本地数据集
+
+
+对于这个例子，我们将使用 SQuAD-it 数据集，这是一个用于意大利语问答的大规模数据集。
+
+wget https://github.com/crux82/squad-it/raw/master/SQuAD_it-train.json.gz
+wget https://github.com/crux82/squad-it/raw/master/SQuAD_it-test.json.gz
+gzip -dkv SQuAD_it-*.json.gz
+
+
+加载一个 JSON 文件使用 load_dataset() 函数，我们只需要知道我们处理的是普通
+ JSON（类似于嵌套字典）还是 JSON Lines（行分隔的 JSON）。像许多问答数据集一样，
+ SQuAD-it 使用嵌套格式，所有文本都存储在 data 字段中。这意味着我们可以通过指定以下 field 参数来加载数据集：
+
 
 '''
+
+
+from datasets import load_dataset
+
+squad_it_dataset = load_dataset("json", data_files="SQuAD_it-train.json", field="data")
+
+
+print(squad_it_dataset)
+
+'''
+这显示了与训练集相关的行数和列名。我们可以通过以下方式通过索引到 train 分割来查看其中一个示例：
+
+
+DatasetDict({
+    train: Dataset({
+        features: ['title', 'paragraphs'],
+        num_rows: 442
+    })
+})
+
+
+'''
+
+
+# print(squad_it_dataset["train"][0])
+
+'''
+{
+    "title": "Terremoto del Sichuan del 2008",
+    "paragraphs": [
+        {
+            "context": "Il terremoto del Sichuan del 2008 o il terremoto...",
+            "qas": [
+                {
+                    "answers": [{"answer_start": 29, "text": "2008"}],
+                    "id": "56cdca7862d2951400fa6826",
+                    "question": "In quale anno si è verificato il terremoto nel Sichuan?",
+                },
+                ...
+            ],
+        },
+        ...
+    ],
+}
+
+
+太好了，我们已经加载了我们的第一个本地数据集！但是，虽然这对训练集有效，
+我们真正想要的是将 train 和 test 分割包含在一个单一的 DatasetDict 对象中，
+这样我们就可以一次性对两个分割应用 Dataset.map() 函数。
+为此，我们可以向 data_files 参数提供一个字典，将每个分割名称映射到与该分割关联的文件：
+
+
+
+'''
+
+
+data_files = {"train": "SQuAD_it-train.json", "test": "SQuAD_it-test.json"}
+squad_it_dataset = load_dataset("json", data_files=data_files, field="data")
+print(squad_it_dataset)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
