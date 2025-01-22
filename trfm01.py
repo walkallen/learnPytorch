@@ -42,8 +42,14 @@ CPPE-5 数据集包含图像，其中标注了在 COVID-19 大流行期间医疗
 
 
 from datasets import load_dataset
+from datasets import load_from_disk
 
-cppe5 = load_dataset("cppe-5")
+
+# cppe5 = load_dataset("cppe-5")
+
+# cppe5.save_to_disk('/mnt/SD1T/suhao/learnPytorchbak/learnPytorch/data_cppe5')
+
+cppe5 = load_from_disk("/mnt/SD1T/suhao/learnPytorchbak/learnPytorch/data_cppe5")
 
 print(cppe5)
 print('\n')
@@ -59,12 +65,28 @@ print('\n')
 
 
 '''
+
+DatasetDict({
+    train: Dataset({
+        features: ['image_id', 'image', 'width', 'height', 'objects'],
+        num_rows: 850
+    })
+    test: Dataset({
+        features: ['image_id', 'image', 'width', 'height', 'objects'],
+        num_rows: 29
+    })
+    validation: Dataset({
+        features: ['image_id', 'image', 'width', 'height', 'objects'],
+        num_rows: 150
+    })
+})
+
 您将看到这个数据集包含 1000 张用于训练和验证集的图像以及一个包含 29 张图像的测试集。
 
 了解数据，探索示例的形态。
 
 '''
-
+print('显示 cppe 里的一个数据')
 print(cppe5["train"][0])
 print('\n')
 '''
@@ -77,12 +99,18 @@ print('\n')
   'objects': {
     'id': [1932, 1933, 1934],
     'area': [27063, 34200, 32431],
-    'bbox': [[29.0, 11.0, 97.0, 279.0],
+    'bbox': 
+     [[29.0, 11.0, 97.0, 279.0],
       [201.0, 1.0, 120.0, 285.0],
       [382.0, 0.0, 113.0, 287.0]],
     'category': [0, 0, 0]
   }
 }
+
+您可能会注意到 bbox 字段遵循 COCO 格式，这是 DETR 模型期望的格式。然而， 
+objects 内部字段的分组与 DETR 所需的注释格式不同。在使用这些数据进行训练之前，您需要应用一些预处理转换。
+
+
     
 '''
 
@@ -94,6 +122,38 @@ from PIL import Image, ImageDraw
 image = cppe5["train"][2]["image"]
 annotations = cppe5["train"][2]["objects"]
 draw = ImageDraw.Draw(image)
+
+print(cppe5["train"].features)
+print("\n")
+'''
+{
+    'image_id': Value(dtype='int64', id=None), 
+    'image': Image(mode=None, decode=True, id=None), 
+    'width': Value(dtype='int32', id=None), 
+    'height': Value(dtype='int32', id=None), 
+    'objects': Sequence(feature={'id': Value(dtype='int64', id=None), 
+    'area': Value(dtype='int64', id=None), 
+    'bbox': Sequence(feature=Value(dtype='float32', id=None), length=4, id=None), 
+    'category': ClassLabel(names=['Coverall', 'Face_Shield', 'Gloves', 'Goggles', 'Mask'], id=None)}, 
+    length=-1, id=None)
+}
+
+通过 features 中的 category 获得标签
+'''
+
+print( cppe5["train"].features["objects"]  )
+print('\n')
+
+'''
+Sequence(
+    feature={'id': Value(dtype='int64', id=None), 
+    'area': Value(dtype='int64', id=None), 
+    'bbox': Sequence(feature=Value(dtype='float32', id=None), length=4, id=None), 
+    'category': ClassLabel(names=['Coverall', 'Face_Shield', 'Gloves', 'Goggles', 'Mask'], id=None)}, 
+    length=-1, id=None)
+
+'''
+
 
 categories = cppe5["train"].features["objects"].feature["category"].names
 

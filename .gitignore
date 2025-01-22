@@ -1,6 +1,7 @@
 env_*/
 models/
 __pycache__/
-data/
+data*/
+data*
 test-trainer/
 SQuAD_it*

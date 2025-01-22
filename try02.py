@@ -46,19 +46,39 @@ def load_coco_dataset(image_dir, annotation_path):
     return Dataset.from_list(data)
 
 # 加载训练集和验证集
-image_dir_train = 'path/to/coco/train2017'
-annotation_path_train = 'path/to/coco/annotations/instances_train2017.json'
-train_dataset = load_coco_dataset(image_dir_train, annotation_path_train)
+# image_dir = '/home/intel/suhao/task_241122_fiftyone/data/data'
+# annotation_path_train = '/home/intel/suhao/task_241122_fiftyone/data/annotations/trainval.json'
+# annotation_path_val = '/home/intel/suhao/task_241122_fiftyone/data/annotations/test.json'
 
-image_dir_val = 'path/to/coco/val2017'
-annotation_path_val = 'path/to/coco/annotations/instances_val2017.json'
-val_dataset = load_coco_dataset(image_dir_val, annotation_path_val)
+image_dir = '/home/intel/suhao/task_241122_fiftyone/data_visa_mvtec_pkuPcb_pkuPhone/data'
+annotation_path_train = '/home/intel/suhao/task_241122_fiftyone/data_visa_mvtec_pkuPcb_pkuPhone/annotations/trainval.json'
+annotation_path_val = '/home/intel/suhao/task_241122_fiftyone/data_visa_mvtec_pkuPcb_pkuPhone/annotations/test.json'
+
+
+
+
+# load train data
+train_dataset = load_coco_dataset(image_dir, annotation_path_train)
+
+# load test data
+val_dataset = load_coco_dataset(image_dir, annotation_path_val)
 
 # 创建 DatasetDict
 coco_dataset = DatasetDict({
     'train': train_dataset,
-    'validation': val_dataset,
+    'test': val_dataset,
 })
 
 # 查看数据集
 print(coco_dataset)
+
+coco_dataset.save_to_disk('/home/intel/suhao/learnPytorchbak/learnPytorch/data_visa_mvtec_pkuPcb_pkuPhone')
+
+
+
+
+
+
+
+
+
