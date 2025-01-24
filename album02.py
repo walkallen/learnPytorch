@@ -7,6 +7,12 @@ from PIL import Image
 
 
 '''
+
+Reference
+
+https://albumentations.ai/docs/getting_started/bounding_boxes_augmentation/#coco
+
+
 边界框是标记图像上对象的矩形。边界框注释有多个格式。每个格式都使用其特定的边界框坐标表示。
 Albumentations 支持四种格式： pascal_voc ， albumentations ， coco ，和 yolo 。
 
@@ -268,7 +274,7 @@ transform = A.Compose([
     A.RandomCrop(width=450, height=450),
     A.HorizontalFlip(p=0.5),
     A.RandomBrightnessContrast(p=0.2),
-], bbox_params=A.BboxParams(format='coco', label_fields=['class_labels', 'class_categories'])))
+], bbox_params=A.BboxParams(format='coco', label_fields=['class_labels', 'class_categories']))
 
 
 

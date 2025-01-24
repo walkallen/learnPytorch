@@ -2,6 +2,9 @@
 
 '''
 
+Reference
+
+    https://huggingface.co/docs/transformers/tasks/object_detection
 
 
 目标检测是计算机视觉任务，用于检测图像中的实例（如人类、建筑物或汽车）。目标检测模型接收图像作为输入，
