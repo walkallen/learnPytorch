@@ -64,7 +64,10 @@ print(image)
 
 # 坐标框的坐标使用 coco 格式声明。每个坐标框用四个值 [x_min, y_min, width, height] 描述。
 
+# boxes 是一系列目标框的数组
 bboxes = [[5.66, 138.95, 147.09, 164.88], [366.7, 80.84, 132.8, 181.84]]
+
+# category_id 是目标框对应的 id,如果在增强过程中，有目标被排除，那么相应的 id 也会被删除
 category_ids = [17, 18]
 
 # We will use the mapping from category_id to the class name

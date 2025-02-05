@@ -32,14 +32,19 @@ Albumentations 支持四种格式： pascal_voc ， albumentations ， coco ，�
 '''
 
 
-image_url = "https://albumentations.ai/docs/images/getting_started/augmenting_bboxes/bbox_example.jpg"
-image = Image.open(requests.get(image_url, stream=True).raw)
+# image_url = "https://albumentations.ai/docs/images/getting_started/augmenting_bboxes/bbox_example.jpg"
+# image = Image.open(requests.get(image_url, stream=True).raw)
+
+image = Image.open('imgs/000000386298.jpg')
+
 
 image_np = np.array(image)
 
 
 image.show()
 
+
+image = np.array(image)
 
 '''
 pascal_voc 是 Pascal VOC 数据集使用的格式。
@@ -116,7 +121,7 @@ import cv2
 
 
 
-transform = A.Compose(
+transform_a = A.Compose(
     [   A.RandomCrop(width=450, height=450),
         A.HorizontalFlip(p=0.5),
         A.RandomBrightnessContrast(p=0.2),
@@ -235,7 +240,7 @@ bboxes = [
 '''
 
 
-transformed = transform(image=image, bboxes=bboxes)
+transformed = transform_a(image=image, bboxes=bboxes)
 transformed_image = transformed['image']
 transformed_bboxes = transformed['bboxes']
 

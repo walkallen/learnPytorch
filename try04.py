@@ -43,8 +43,8 @@ print('\n')
 # image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
 # image = Image.open(requests.get(image_url, stream=True).raw)
 
-# image = loaded_dataset_dict['test'][0]['image']
-image = loaded_dataset_dict['test'][82]['image']
+image = loaded_dataset_dict['test'][0]['image']
+# image = loaded_dataset_dict['test'][82]['image']
 
 
 print(image)
@@ -55,6 +55,7 @@ image.show()
 # text = "a cat. a remote control."
 text = "a oil. a phone. a scratch."
 # text = " oil. phone. scratch."
+text = "an oil stain. a phone. a scratch."
 
 inputs = processor(images=image, text=text, return_tensors="pt").to(device)
 
