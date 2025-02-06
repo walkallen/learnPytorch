@@ -99,6 +99,9 @@ AutoTokenizer
 
 
 将文本传入分词器：
+
+分词器也可以接受列表作为输入，并填充和截断文本，返回具有统一长度的批次：
+
 '''
 
 from transformers import AutoTokenizer
@@ -114,3 +117,65 @@ print(encoding)
  'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
  'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}
 '''
+
+print('分词器也可以接受列表作为输入，并填充和截断文本，返回具有统一长度的批次：')
+pt_batch = tokenizer(
+    ["We are very happy to show you the 🤗 Transformers library.", 
+    "We hope you don't hate it."],
+    padding=True,
+    truncation=True,
+    max_length=512,
+    return_tensors="pt",
+)
+
+print(pt_batch)
+
+'''
+{'input_ids': tensor([[  101, 11312, 10320, 12495, 19308, 10114, 11391, 10855, 10103,   100,  58263, 13299,   119,   102],
+                        [  101, 11312, 18763, 10855, 11530,   112,   162, 39487, 10197,   119, 102,     0,     0,     0]]), 
+'token_type_ids': tensor([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]), 
+'attention_mask': tensor([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]])}
+
+
+🤗 Transformers 提供了一种简单统一的方式来加载预训练的实例. 
+这表示你可以像加载 AutoTokenizer 一样加载 AutoModel。唯一不同的地方是为你的任务选择正确的AutoModel。
+对于文本（或序列）分类，你应该加载AutoModelForSequenceClassification：
+
+
+
+'''
+
+from transformers import AutoModelForSequenceClassification
+
+model_name = "nlptown/bert-base-multilingual-uncased-sentiment"
+pt_model = AutoModelForSequenceClassification.from_pretrained(model_name)
+
+print('解包之前得到的分词结果')
+# suhao 解包之前得到的分词结果
+pt_outputs = pt_model(**pt_batch)
+
+print(pt_outputs)
+
+
+
+'''
+模型在 logits 属性输出最终的激活结果. 在 logits 上应用 softmax 函数来查询概率:
+
+'''
+
+print('模型在 logits 属性输出最终的激活结果. 在 logits 上应用 softmax 函数来查询概率:')
+
+from torch import nn
+
+pt_predictions = nn.functional.softmax(pt_outputs.logits, dim=-1)
+print(pt_predictions)
+
+'''
+suhao, 结果代表从 1 级到 5 级，每一个等级的概率
+tensor([[0.0021, 0.0018, 0.0115, 0.2121, 0.7725],
+        [0.2084, 0.1826, 0.1969, 0.1755, 0.2365]], grad_fn=<SoftmaxBackward0>)
+
+'''
+
