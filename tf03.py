@@ -235,19 +235,122 @@ torch.cuda.empty_cache()
 
 '''
 
-transcriber = pipeline(model="openai/whisper-large-v2", chunk_length_s=30, return_timestamps=True)
+
+
+'''
+在数据集上使用pipelines
+pipelines 也可以对大型数据集进行推理。我们建议使用迭代器来完成这一任务，这是最简单的方法：
+
+
+
+'''
+
+def data():
+    for i in range(20):
+        yield f"My example {i}"
+
+
+pipe = pipeline(model="openai-community/gpt2", device=0)
+generated_characters = 0
+for out in pipe(data()):
+    generated_characters += len(out[0]["generated_text"])
+
+print('pipelines 也可以对大型数据集进行推理。我们建议使用迭代器来完成这一任务，这是最简单的方法：')
+print(f'generated characters is {generated_characters}')
+
+# 完成操作后，删除 pipeline 对象
+del pipe
+# 手动触发垃圾回收
+gc.collect()
+# 清空 PyTorch 缓存
+torch.cuda.empty_cache()
+
+
+
+'''
+视觉流水线
+对于视觉任务，使用pipeline() 几乎是相同的。
+
+指定您的任务并将图像传递给分类器。图像可以是链接、本地路径或base64编码的图像。例如，下面显示的是哪种品种的猫？
+
+'''
+
+from transformers import pipeline
+
+vision_classifier = pipeline(model="google/vit-base-patch16-224")
+preds = vision_classifier(
+    images="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
+)
+preds = [{"score": round(pred["score"], 4), "label": pred["label"]} for pred in preds]
+print(preds)
+'''
+[
+    {'score': 0.4335, 'label': 'lynx, catamount'}, 
+    {'score': 0.0348, 'label': 'cougar, puma, catamount, mountain lion, painter, panther, Felis concolor'}, 
+    {'score': 0.0324, 'label': 'snow leopard, ounce, Panthera uncia'}, 
+    {'score': 0.0239, 'label': 'Egyptian cat'}, 
+    {'score': 0.0229, 'label': 'tiger cat'}]
+
+'''
+
+
+# 完成操作后，删除 pipeline 对象
+del vision_classifier
+# 手动触发垃圾回收
+gc.collect()
+# 清空 PyTorch 缓存
+torch.cuda.empty_cache()
+
+
+
+'''
+文本流水线
+对于NLP任务，使用pipeline() 几乎是相同的。
+
+
+'''
+
+
+from transformers import pipeline
+
+# This model is a `zero-shot-classification` model.
+# It will classify text, except you are free to choose any label you might imagine
+classifier = pipeline(model="facebook/bart-large-mnli")
+
 print(
-transcriber("https://huggingface.co/datasets/sanchit-gandhi/librispeech_long/resolve/main/audio.wav")
+classifier(
+    "I have a problem with my iphone that needs to be resolved asap!!",
+    candidate_labels=["urgent", "not urgent", "phone", "tablet", "computer"],
+)
 )
 
 
+# 完成操作后，删除 pipeline 对象
+del classifier
+# 手动触发垃圾回收
+gc.collect()
+# 清空 PyTorch 缓存
+torch.cuda.empty_cache()
 
 
 
+'''
+多模态流水线
+pipeline() 支持多个模态。例如, 视觉问题回答 (VQA) 任务结合了文本和图像。请随意使用您喜欢的任何图像链接和您想要问关于该图像的问题。图像可以是URL或图像的本地路径。
+
+例如，如果您使用这个invoice image：
+
+'''
 
 
+from transformers import pipeline
 
-
-
+vqa = pipeline(model="impira/layoutlm-document-qa")
+output = vqa(
+    image="https://huggingface.co/spaces/impira/docquery/resolve/2359223c1837a7587402bda0f2643382a6eefeab/invoice.png",
+    question="What is the invoice number?",
+)
+output[0]["score"] = round(output[0]["score"], 3)
+print(output)
 
 
