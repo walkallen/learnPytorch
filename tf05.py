@@ -264,6 +264,323 @@ dataset[0]["audio"]
 
 
 
+'''
+这会返回三个对象：
+
+array 是加载的语音信号 - 并在必要时重新采为 1D array。
+path 指向音频文件的位置。
+sampling_rate 是每秒测量的语音信号数据点数量。
+
+
+对于本教程, 您将使用Wav2Vec2模型。查看模型卡片, 您将了解到Wav2Vec2是在16kHz采样的语音音频数据上预训练的。
+重要的是, 您的音频数据的采样率要与用于预训练模型的数据集的采样率匹配。如果您的数据的采样率不同, 那么您需要对数据进行重新采样。
+
+
+1. 使用🤗 Datasets的cast_column方法将采样率提升到16kHz：
+'''
+
+print('\n')
+print('使用🤗 Datasets的cast_column方法将采样率提升到16kHz：')
+
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16_000))
+
+print(
+dataset[0]["audio"]
+)
+
+'''
+接下来, 加载一个feature extractor 以对输入进行标准化和填充。当填充文本数据时, 
+会为较短的序列添加 0。相同的理念适用于音频数据。feature extractor添加 0 - 被解释为静音 - 到array 。
+
+使用 AutoFeatureExtractor.from_pretrained() 加载feature extractor：
+
+'''
+
+
+
+from transformers import AutoFeatureExtractor
+
+feature_extractor = AutoFeatureExtractor.from_pretrained("facebook/wav2vec2-base")
+
+
+# 将音频 array 传递给feature extractor。我们还建议在feature extractor中添加 
+# sampling_rate 参数, 以更好地调试可能发生的静音错误：
+
+
+print('\n')
+print('将音频 array 传递给feature extractor')
+audio_input = [dataset[0]["audio"]["array"]]
+
+print(
+feature_extractor(audio_input, sampling_rate=16000)
+)
+
+
+
+# 就像tokenizer一样, 您可以应用填充或截断来处理批次中的可变序列。请查看这两个音频样本的序列长度：
+
+
+print('\n')
+print('就像tokenizer一样, 您可以应用填充或截断来处理批次中的可变序列。请查看这两个音频样本的序列长度')
+print(dataset[0]["audio"]["array"].shape)
+
+print(dataset[1]["audio"]["array"].shape)
+
+
+
+# 创建一个函数来预处理数据集, 以使音频样本具有相同的长度。
+# 通过指定最大样本长度, feature extractor将填充或截断序列以使其匹配：
+
+def preprocess_function(examples):
+    audio_arrays = [x["array"] for x in examples["audio"]]
+    inputs = feature_extractor(
+        audio_arrays,
+        sampling_rate=16000,
+        padding=True,
+        max_length=100000,
+        truncation=True,
+    )
+    return inputs
+
+
+print('\n')
+print('通过指定最大样本长度, feature extractor将填充或截断序列以使其匹配：')
+
+processed_dataset = preprocess_function(dataset[:5])
+
+
+print(
+processed_dataset["input_values"][0].shape
+)
+
+print(
+processed_dataset["input_values"][1].shape
+)
+
+
+
+'''
+计算机视觉
+
+    对于计算机视觉任务, 您需要一个image processor 来准备数据集以供模型使用。
+    图像预处理包括多个步骤将图像转换为模型期望输入的格式。
+    这些步骤包括但不限于调整大小、标准化、颜色通道校正以及将图像转换为张量。
+
+
+
+    图像预处理通常遵循某种形式的图像增强。图像预处理和图像增强都会改变图像数据, 但它们有不同的目的：
+
+    图像增强可以帮助防止过拟合并增加模型的鲁棒性。您可以在数据增强方面充分发挥创造性 - 调整亮度和颜色、裁剪、旋转、调整大小、缩放等。但要注意不要改变图像的含义。
+    图像预处理确保图像与模型预期的输入格式匹配。在微调计算机视觉模型时, 必须对图像进行与模型训练时相同的预处理。
+    您可以使用任何您喜欢的图像增强库。对于图像预处理, 请使用与模型相关联的 ImageProcessor。
+
+
+加载food101数据集（有关如何加载数据集的更多详细信息, 请参阅🤗 Datasets教程）以了解如何在计算机视觉数据集中使用图像处理器：
+因为数据集相当大, 请使用🤗 Datasets的split参数加载训练集中的少量样本！
+
+
+'''
+
+
+from datasets import load_dataset
+
+dataset = load_dataset("food101", split="train[:100]")
+
+print(dataset[0]["image"])
+dataset[0]["image"].show()
+
+
+
+# 使用 AutoImageProcessor.from_pretrained() 加载image processor：
+
+from transformers import AutoImageProcessor
+
+image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+
+
+'''
+首先, 让我们进行图像增强。您可以使用任何您喜欢的库, 但在本教程中, 
+我们将使用 torchvision 的 transforms 模块。
+如果您有兴趣使用其他数据增强库, 请参阅 Albumentations 或 Kornia notebooks 中的示例。
+
+在这里, 我们使用 Compose 将 RandomResizedCrop 和 ColorJitter 变换连接在一起。
+请注意, 对于调整大小, 我们可以从 image_processor 中获取图像尺寸要求。
+对于一些模型, 精确的高度和宽度需要被定义, 对于其他模型只需定义shortest_edge。
+
+'''
+
+
+from torchvision.transforms import RandomResizedCrop, ColorJitter, Compose
+
+import torchvision
+
+print('\n')
+print('首先, 让我们进行图像增强。')
+print(image_processor.size)
+
+
+size = (
+    image_processor.size["shortest_edge"]
+    if "shortest_edge" in image_processor.size
+    else (image_processor.size["height"], image_processor.size["width"])
+)
+
+print('size is ')
+print(size)
+
+_transforms = Compose(
+    [
+        RandomResizedCrop(size), 
+        ColorJitter(brightness=0.5, hue=0.5)
+    ]
+)
+
+
+
+'''
+2. 模型接受 pixel_values 作为输入。ImageProcessor 可以进行图像的标准化, 
+    并生成适当的张量。创建一个函数, 将图像增强和图像预处理步骤组合起来处理批量图像, 并生成 pixel_values：
+
+
+'''
+
+
+def transforms(examples):
+    images = [_transforms(img.convert("RGB")) for img in examples["image"]]
+    examples["pixel_values"] = image_processor(images, do_resize=False, return_tensors="pt")["pixel_values"]
+    return examples
+
+
+dataset.set_transform(transforms)
+
+
+print(
+dataset[0].keys()
+)
+
+print(
+    dataset[0]["pixel_values"]
+)
+
+print(
+    dataset[0]["pixel_values"].shape
+)
+
+topil = torchvision.transforms.ToPILImage()
+
+image_pil = topil(dataset[0]["pixel_values"])
+
+image_pil.show()
+
+
+
+'''
+
+填充
+
+    在某些情况下, 例如, 在微调 DETR 时, 模型在训练时应用了尺度增强。
+    这可能导致批处理中的图像大小不同。您可以使用 DetrImageProcessor.pad() 来指定自定义的
+    collate_fn 将图像批处理在一起。
+
+
+
+
+'''
+
+def collate_fn(batch):
+    pixel_values = [item["pixel_values"] for item in batch]
+    encoding = image_processor.pad(pixel_values, return_tensors="pt")
+    labels = [item["labels"] for item in batch]
+    batch = {}
+    batch["pixel_values"] = encoding["pixel_values"]
+    batch["pixel_mask"] = encoding["pixel_mask"]
+    batch["labels"] = labels
+    return batch
+
+
+
+
+
+
+
+'''
+
+多模态
+    对于涉及多模态输入的任务, 您需要 processor 来为模型准备数据集。
+    processor 将两个处理对象-例如 tokenizer 和 feature extractor -组合在一起。
+
+    加载LJ Speech数据集（有关如何加载数据集的更多详细信息, 请参阅🤗 Datasets 教程）
+    以了解如何使用processor进行自动语音识别（ASR）：
+
+
+
+'''
+
+
+print('\n')
+print('对于涉及多模态输入的任务, 您需要 processor 来为模型准备数据集')
+
+from datasets import load_dataset
+
+lj_speech = load_dataset("lj_speech", split="train")
+
+
+# 对于ASR（自动语音识别）, 主要关注audio和text, 因此可以删除其他列：
+
+lj_speech = lj_speech.map(remove_columns=["file", "id", "normalized_text"])
+
+
+print(lj_speech)
+
+
+# 现在查看 audio 和 text 列：
+
+print('\n')
+print('现在查看 audio 和 text 列：')
+
+
+print(
+lj_speech[0]["audio"]
+)
+
+print(
+lj_speech[0]["text"]
+)
+
+
+
+lj_speech = lj_speech.cast_column("audio", Audio(sampling_rate=16_000))
+
+
+
+# 使用 AutoProcessor.from_pretrained() 加载一个 processor：
+
+
+
+from transformers import AutoProcessor
+
+processor = AutoProcessor.from_pretrained("facebook/wav2vec2-base-960h")
+
+
+# 创建一个函数, 用于将包含在 array 中的音频数据处理为 input_values, 
+# 并将 text 标记为 labels。这些将是输入模型的数据：Copied
+
+
+def prepare_dataset(example):
+    audio = example["audio"]
+
+    example.update(processor(audio=audio["array"], text=example["text"], sampling_rate=16000))
+
+    return example
+
+# 将 prepare_dataset 函数应用于一个示例：
+
+print(
+prepare_dataset(lj_speech[0])
+)
+
+
+
 
 
 
