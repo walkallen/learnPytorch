@@ -2,6 +2,11 @@
 
 
 '''
+
+Reference 
+    https://huggingface.co/docs/transformers/v4.48.2/zh/training
+
+    
 微调预训练模型
 
 
