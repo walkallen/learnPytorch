@@ -161,6 +161,29 @@ model.to(device)
 
 
 
+import evaluate
+
+metric = evaluate.load("accuracy")
+model.eval()                        # 评估模式，关闭 Dropout 层
+for batch in eval_dataloader:
+    batch = {k: v.to(device) for k, v in batch.items()}
+    with torch.no_grad():           # 临时禁用梯度计算，令 torch 不记录计算图，可以减少内存消耗
+        outputs = model(**batch)
+
+    logits = outputs.logits
+    predictions = torch.argmax(logits, dim=-1)  # 将 logits 转换为模型预测的类别 (predictions)。 
+                                                # 如果 logits 是形状为 (batch_size, num_classes) 的张量， 
+                                                # 那么 predictions 将会是形状为 (batch_size) 的张量， 
+                                                # 其中每个元素代表对应样本的预测类别索引。
+    metric.add_batch(predictions=predictions, references=batch["labels"])
+
+print(
+metric.compute()
+)
+
+
+
+
 # 现在您已经准备好训练了！🥳
 
 # 训练循环
@@ -172,18 +195,18 @@ from tqdm.auto import tqdm
 
 progress_bar = tqdm(range(num_training_steps))
 
-model.train()
+model.train() # 训练模式，使用 Dropout 层
 for epoch in range(num_epochs):
     for batch in train_dataloader:
         batch = {k: v.to(device) for k, v in batch.items()}
-        outputs = model(**batch)
-        loss = outputs.loss
-        loss.backward()
+        outputs = model(**batch)# 解包字典 如果 batch 包含键 "input_ids" 和 "attention_mask"， 那么这行代码就相当于 outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        loss = outputs.loss     # 从模型的输出 outputs 中提取损失值 (loss)
+        loss.backward()         # 执行反向传播 (backpropagation)， 计算模型参数的梯度 (gradients)。
 
-        optimizer.step()
-        lr_scheduler.step()
-        optimizer.zero_grad()
-        progress_bar.update(1)
+        optimizer.step()        # 使用优化器 (optimizer) 来更新模型的参数。
+        lr_scheduler.step()     # 调用学习率调度器 (learning rate scheduler) 来更新学习率 (learning rate)
+        optimizer.zero_grad()   # 将优化器中存储的梯度清零。
+        progress_bar.update(1)  # 更新进度条 (progress bar)， 用于显示训练进度
 
 
 
@@ -192,14 +215,21 @@ for epoch in range(num_epochs):
 import evaluate
 
 metric = evaluate.load("accuracy")
-model.eval()
+model.eval()                        # 评估模式，关闭 Dropout 层
 for batch in eval_dataloader:
     batch = {k: v.to(device) for k, v in batch.items()}
-    with torch.no_grad():
+    with torch.no_grad():           # 临时禁用梯度计算，令 torch 不记录计算图，可以减少内存消耗
         outputs = model(**batch)
 
     logits = outputs.logits
-    predictions = torch.argmax(logits, dim=-1)
+    predictions = torch.argmax(logits, dim=-1)  # 将 logits 转换为模型预测的类别 (predictions)。 
+                                                # 如果 logits 是形状为 (batch_size, num_classes) 的张量， 
+                                                # 那么 predictions 将会是形状为 (batch_size) 的张量， 
+                                                # 其中每个元素代表对应样本的预测类别索引。
     metric.add_batch(predictions=predictions, references=batch["labels"])
 
+print(
 metric.compute()
+)
+
+
