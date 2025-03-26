@@ -88,6 +88,9 @@ To do so you can use torch.squeeze() (I remember this as squeezing the tensor to
 
 """
 
+print("\n======================= 使用 torch.squeeze() 删除多余的维度 \n")
+
+
 print(f"Previous tensor: {x_reshaped}")
 print(f"Previous shape: {x_reshaped.shape}")
 
@@ -96,3 +99,42 @@ x_squeezed = x_reshaped.squeeze()
 print(f"\nNew tensor: {x_squeezed}")
 print(f"New shape: {x_squeezed.shape}")
 print("\n")
+
+
+
+
+
+# 要执行与torch.squeeze()相反的操作，您可以使用torch.unsqueeze()在特定索引处添加维度值 1。
+print("\n======================= 要执行与torch.squeeze()相反的操作，您可以使用torch.unsqueeze()在特定索引处添加维度值 1 \n")
+
+print(f"Previous tensor: {x_squeezed}")
+print(f"Previous shape: {x_squeezed.shape}")
+
+## Add an extra dimension with unsqueeze
+x_unsqueezed = x_squeezed.unsqueeze(dim=0)
+print(f"\nNew tensor: {x_unsqueezed}")
+print(f"New shape: {x_unsqueezed.shape}")
+print("\n")
+
+
+
+
+
+# 您还可以使用torch.permute(input, dims)重新排列轴值的顺序，其中input将转换为具有新dims视图。
+
+print("\n======================= 您还可以使用torch.permute(input, dims)重新排列轴值的顺序, 其中input 将转换为具有新 dims 视图 \n")
+# Create tensor with specific shape
+x_original = torch.rand(size=(224, 224, 3))
+
+# Permute the original tensor to rearrange the axis order
+x_permuted = x_original.permute(2, 0, 1) # shifts axis 0->1, 1->2, 2->0
+
+print(f"Previous shape: {x_original.shape}")
+print(f"New shape: {x_permuted.shape}")
+
+
+
+
+
+
+

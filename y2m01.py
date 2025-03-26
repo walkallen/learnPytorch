@@ -82,31 +82,3 @@ TENSOR.shape    torch.Size([1, 3, 3])
 
 
 
-
-
-# 要执行与torch.squeeze()相反的操作，您可以使用torch.unsqueeze()在特定索引处添加维度值 1。
-print("要执行与torch.squeeze()相反的操作，您可以使用torch.unsqueeze()在特定索引处添加维度值 1")
-
-print(f"Previous tensor: {x_squeezed}")
-print(f"Previous shape: {x_squeezed.shape}")
-
-## Add an extra dimension with unsqueeze
-x_unsqueezed = x_squeezed.unsqueeze(dim=0)
-print(f"\nNew tensor: {x_unsqueezed}")
-print(f"New shape: {x_unsqueezed.shape}")
-print("\n")
-
-
-# 您还可以使用torch.permute(input, dims)重新排列轴值的顺序，其中input将转换为具有新dims视图。
-
-print("您还可以使用torch.permute(input, dims)重新排列轴值的顺序，其中input将转换为具有新dims视图")
-# Create tensor with specific shape
-x_original = torch.rand(size=(224, 224, 3))
-
-# Permute the original tensor to rearrange the axis order
-x_permuted = x_original.permute(2, 0, 1) # shifts axis 0->1, 1->2, 2->0
-
-print(f"Previous shape: {x_original.shape}")
-print(f"New shape: {x_permuted.shape}")
-
-
