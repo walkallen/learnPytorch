@@ -9,4 +9,5 @@ tqdm
 requests
 onnx
 netron
+gdown
 openvino==2025.0.0
