@@ -4,3 +4,9 @@ torchaudio
 matplotlib
 scikit-learn
 pandas
+opencv-python
+tqdm
+requests
+onnx
+netron
+openvino==2025.0.0
